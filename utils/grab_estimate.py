@@ -1,4 +1,4 @@
-﻿import numpy as np
+import numpy as np
 import cv2
 from utils.gribber import Gribber, SortGribberConfig, StackGribberConfig
 from utils.DB.DbResposity import *
@@ -140,7 +140,7 @@ def grab_by_gravity_center(piece, kernels_dict, mode, rot_base, center: tuple, i
     # circles = [i for i in circles[0, :]]
     circles = doublecheck_circles(circles, kernel_vis, kernels_dict)
     if len(circles) <= 1:  # if the
-        print("The effective gribber only exist for 1, not grabable!")
+        # print("The effective gribber only exist for 1, not grabable!")
         return -1, None
     kernel_vis = cv2.cvtColor(kernel_vis, cv2.COLOR_GRAY2BGR)
     for i in circles:
@@ -498,6 +498,7 @@ def grab_plan_sort(data, config):
                 # else:
                 #     index, circles = grab_by_gravity_center(preprocess_torch(area), kernels, mode, grib.rotation_angle,
                 #                                             center, id, split=split, sn=nest[i]['PartSN'], num=i)
+                cv2.imwrite("./output/area_vis/area_vis_num{}_sn{}_id{}.png".format(i, nest[i]['PartSN'], id), area)
                 index, circles = grab_by_gravity_center(preprocess_torch(area), kernels, mode, grib.rotation_angle,
                                                             center, id, split=split, sn=nest[i]['PartSN'], num=i)
                 if index == -1:
@@ -510,18 +511,34 @@ def grab_plan_sort(data, config):
                     # area, center, mode = areas_and_centers_local[id][0], areas_and_centers_local[id][1], areas_and_centers_local[id][2]
                     # center, mode = areas_and_centers_local[id][1], areas_and_centers_local[id][2]
 
-                    print("Retrying programming grab for the part {} with drift ...".format(nest[i]['PartSN']))
-                    while center[0] > area.shape[1]//2 - kernels[mode].shape[1] // 2 and area.shape[1] > kernels[mode].shape[1]:
+                    print("Retrying programming grab for the part {} with horizonal drift ...".format(nest[i]['PartSN']))
+                    count = 10
+                    while center[0] > area.shape[1]//2 - kernels[mode].shape[1] // 2 and area.shape[1] > kernels[mode].shape[1] and count>0:
                         center = (center[0]-10, center[1])
                         index, circles = grab_by_gravity_center(preprocess_torch(area), kernels, mode, grib.rotation_angle,
-                                                                center, id, sn=nest[i]['PartSN'], num=i)
+                                                                center, id, split=split, sn=nest[i]['PartSN'], num=i)
+                        count -= 1
                         if index != -1:
                             break
                     if index == -1:
-                        print("Reprogramming Failed, the part {} is not grabbable!".format(nest[i]['PartSN']))
-                        nest[i]['Grabbability'] = False
-                        data[nestID]["Parts"].update(nest)
-                        continue
+                        print("Retrying programming grab for the part {} with vertical drift ...".format(nest[i]['PartSN']))
+                        center = (center[0] + 100, center[1])
+                        count = 10
+                        while center[1] < area.shape[0]//8*7 and count > 0:
+                            center = (center[0], center[1] - 5)
+                            index, circles = grab_by_gravity_center(preprocess_torch(area), kernels, mode,
+                                                                    grib.rotation_angle,
+                                                                    center, id, split=split, sn=nest[i]['PartSN'], num=i)
+                            count -= 1
+                            if index != -1:
+                                break
+                        if index == -1:
+                            print("Reprogramming Failed, the part {} is not grabbable!".format(nest[i]['PartSN']))
+                            nest[i]['Grabbability'] = False
+                            data[nestID]["Parts"].update(nest)
+                            continue
+                        else:
+                            print("Reprogramming Success, continuing ...")
                     else:
                         print("Reprogramming Success, continuing ...")
                 theta = index * grib.rotation_angle
@@ -818,44 +835,6 @@ def visualize_grab_plan(data, with_offset=False):
                     cv2.line(img, pt, ds, colors[mode], thickness=10)
         cv2.imwrite(output_path, img)
 
-def visualize_grab_plan_stack(inp_img, data, with_offset=False):
-    colors = {
-        "50": (255, 0, 0),  # Blue  只使用一组阵列中一行4个直径50吸头的情况为蓝色
-        "100": (0, 255, 0),  # Green  只使用一组阵列中一行4个直径100吸头的情况为绿色
-        "small": (0, 0, 255),  # Red  只使用一组阵列的情况为红色
-        "medium": (240, 32, 160),  # Purple 使用2组阵列的情况为紫色
-        "large": (112, 20, 20),  # deep blue 使用3组阵列的情况为深蓝色
-    }
-    length = 125
-    pad = 2000
-    for nestID in data.keys():
-        img = cv2.imread(inp_img)
-        if with_offset:
-            img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-            img = np.pad(img, pad, 'maximum')
-            img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
-        output_path = "./dump/grab_vis/{}_offset.png".format('vis') if with_offset else "./dump/grab_vis/{}.png".format('vis')
-        parts = data[nestID]["Parts"]
-        nestHeight = data[nestID]["Height"]
-        for n in parts.keys():
-            if parts[n]["Grabbability"]:
-                for g in parts[n]["Grab"].keys():
-                    pt = parts[n]["Grab"][g]["Grabpoint"]
-                    pt = (int(pt[0]), int(nestHeight - pt[1]))
-                    theta = parts[n]["Grab"][g]["Theta"]
-                    mode = parts[n]["Mode"]
-                    # ds = (int(pt[0]+length*math.cos(theta/180*math.pi)), int(pt[1]+length*math.sin(theta/180*math.pi)))
-                    ds = (int(pt[0]-length*math.cos((theta-90)/180*math.pi)), int(pt[1]+length*math.sin((theta-90)/180*math.pi)))
-                    if with_offset:
-                        pt = (pt[0] + pad, pt[1] + pad)
-                        ds = (ds[0] + pad, ds[1] + pad)
-                    cv2.circle(img, pt, 30, colors[mode], -1)
-                    cv2.line(img, pt, ds, colors[mode], thickness=10)
-
-        img = cv2.resize(src=img, dsize=None, fx=0.25, fy=0.25)
-        if img.shape[0] > img.shape[1]:
-            img = cv2.rotate(img, cv2.ROTATE_90_COUNTERCLOCKWISE)
-        cv2.imwrite("./output/grab_vis.png", img)
 
 if __name__ == "__main__":
     kernel_path = "./weights/gribber_kernels_sort.pth"

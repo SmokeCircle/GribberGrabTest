@@ -23,13 +23,13 @@ def plan(nestIDs, reverses, mirrors, taskID):
     '''
 
     # Configuring
-    for path in ["./output", "./output/pieces", "./output/kernel_vis", "./output/grab_results",
+    for path in ["./output", "./output/area_vis", "./output/pieces", "./output/kernel_vis", "./output/grab_results",
                  "./dump", "./dump/nests", "./dump/nests_grab_offset", "./dump/nests_store_offset", "./dump/grab_vis",
                  "./weights", "./dump/nest_grab_orders", "./dump/parts_to_store", "./dump/conveyor_vis"]:
         if not os.path.exists(path):
             os.makedirs(path)
 
-    rootDir =  "/data/GribberGrabTest/data/dxf"
+    rootDir = "/data/GribberGrabTest/data/dxf"
     dxfDir = os.path.join(rootDir, "{0:04d}{1:02d}{2:02d}".format(datetime.now().year, datetime.now().month, datetime.now().day))
 
     print("Configuring ...")
