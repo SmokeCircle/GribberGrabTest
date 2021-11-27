@@ -834,7 +834,47 @@ def visualize_grab_plan(data, with_offset=False):
                     cv2.circle(img, pt, 30, colors[mode], -1)
                     cv2.line(img, pt, ds, colors[mode], thickness=10)
         cv2.imwrite(output_path, img)
+        
+def visualize_grab_plan_stack(inp_img, data, with_offset=False):
+    colors = {
+        "50": (255, 0, 0),  # Blue  只使用一组阵列中一行4个直径50吸头的情况为蓝色
+        "100": (0, 255, 0),  # Green  只使用一组阵列中一行4个直径100吸头的情况为绿色
+        "small": (0, 0, 255),  # Red  只使用一组阵列的情况为红色
+        "medium": (240, 32, 160),  # Purple 使用2组阵列的情况为紫色
+        "large": (112, 20, 20),  # deep blue 使用3组阵列的情况为深蓝色
+    }
+    length = 125
+    pad = 2000
+    for nestID in data.keys():
+        img = cv2.imread(inp_img)
+        if with_offset:
+            img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+            img = np.pad(img, pad, 'maximum')
+            img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
+        output_path = "./dump/grab_vis/{}_offset.png".format('vis') if with_offset else "./dump/grab_vis/{}.png".format('vis')
+        parts = data[nestID]["Parts"]
+        nestHeight = data[nestID]["Height"]
+        for n in parts.keys():
+            if parts[n]["Grabbability"]:
+                for g in parts[n]["Grab"].keys():
+                    pt = parts[n]["Grab"][g]["Grabpoint"]
+                    pt = (int(pt[0]), int(nestHeight - pt[1]))
+                    theta = parts[n]["Grab"][g]["Theta"]
+                    mode = parts[n]["Mode"]
+                    # ds = (int(pt[0]+length*math.cos(theta/180*math.pi)), int(pt[1]+length*math.sin(theta/180*math.pi)))
+                    ds = (int(pt[0]-length*math.cos((theta-90)/180*math.pi)), int(pt[1]+length*math.sin((theta-90)/180*math.pi)))
+                    if with_offset:
+                        pt = (pt[0] + pad, pt[1] + pad)
+                        ds = (ds[0] + pad, ds[1] + pad)
+                    cv2.circle(img, pt, 30, colors[mode], -1)
+                    cv2.line(img, pt, ds, colors[mode], thickness=10)
 
+        img = cv2.resize(src=img, dsize=None, fx=0.25, fy=0.25)
+        if img.shape[0] > img.shape[1]:
+            img = cv2.rotate(img, cv2.ROTATE_90_COUNTERCLOCKWISE)
+        cv2.imwrite("/data/GribberGrabTest/output/{}.png".format(nestID), img)
+        #cv2.waitKey(0)
+        #cv2.destroyAllWindows()
 
 if __name__ == "__main__":
     kernel_path = "./weights/gribber_kernels_sort.pth"
