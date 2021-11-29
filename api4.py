@@ -1,4 +1,4 @@
-import numpy as np
+﻿import numpy as np
 import cv2
 import torch
 import argparse
@@ -190,7 +190,7 @@ def plan(args):
         Store = {}
         for Parts in data_like[nestID]["Parts"].values():
             if Parts['Grabbability']:
-                Store[Parts['PartSN']]= Parts['Store']
+                Store[Parts['PartSN']] =  Parts['Store']
 
         for nestID in data.keys():
             offset_grab = (0, 0, 0)
@@ -206,6 +206,14 @@ def plan(args):
 
                 # parts_to_store key "store" copy to data key "store" (by partSN)
                 data[nestID]["Parts"][n].update({'Store': Store[data[nestID]["Parts"][n]['PartSN']]})
+                # 对2个以上抓手的情况进行 synchronization, 以第1个抓手(m=0)的travel_length(Dx,Dy)为标准
+                if len(data[nestID]["Parts"][n]['Store'].keys()) >= 2:
+                    Storepoint = data[nestID]["Parts"][n]['Store'][0]['Storepoint']
+                    Grabpoint = data[nestID]['Parts'][n]['Grab'][0]['Grabpoint']
+                    travel_length = (Storepoint[0] - Grabpoint[0], Storepoint[1] - Grabpoint[1])
+                    synced_Storepoint = (data[nestID]['Parts'][n]['Grab'][1]['Grabpoint'][0] + travel_length[0],
+                                         data[nestID]['Parts'][n]['Grab'][1]['Grabpoint'][1] + travel_length[1])
+                    data[nestID]["Parts"][n]['Store'][1]['Storepoint'] = synced_Storepoint
             data[nestID].update({"StoreStatus": 1})
 
         print("Inserting Stack Strategy into SQL Server ...")
