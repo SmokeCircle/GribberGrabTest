@@ -89,7 +89,9 @@ def store_plan(data, config, workrests):
                 wid += 1
                 while wid >= len(workrests[workrest_type][tech]):
                     workrests[workrest_type][tech].append(
-                        WorkRest({'cuda': config['CUDA'], 'width_real': width, 'id': len(workrests[workrest_type][tech]), 'technic': tech}))
+                        WorkRest({'cuda': config['CUDA'], 'width_real': width,
+                                  'id': len(workrests[workrest_type][tech]),
+                                  'technic': tech, 'simple': workrest_type==2}))
         angle = 90 if rot else 0
         orientation = pieces_to_store[k]['Orientation'] + angle
         pieces_to_store[k]['Store'] = {

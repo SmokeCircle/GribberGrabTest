@@ -723,6 +723,7 @@ def grab_apply_offset(part: dict, offset: tuple, references, device_code="LC-01"
         theta = part["Grab"][n]["Theta"]
         effect_list_50 = part["Grab"][n]["List50"]
         effect_list_100 = part["Grab"][n]["List100"]
+        cb = part["Convey"][n]["Conveypoint"]
 
         # Support for angle 0, 180
         split_x = references["PlatesDict"][device_code][0] - 1600
@@ -733,15 +734,20 @@ def grab_apply_offset(part: dict, offset: tuple, references, device_code="LC-01"
                     effect_list_100 = effect_list_100[8:12] + effect_list_100[:8] + effect_list_100[20:] + effect_list_100[12:20]
                     gb = (gb[0] - grib_set_length * math.cos(theta / 180 * math.pi),
                           gb[1] - grib_set_length * math.sin(theta / 180 * math.pi))
+                    cb = (cb[0] - grib_set_length * math.cos(theta / 180 * math.pi),
+                          cb[1] - grib_set_length * math.sin(theta / 180 * math.pi))
             else:
                 if theta < 180:  # use the right side
                     effect_list_50 = effect_list_50[8:] + effect_list_50[:8]
                     effect_list_100 = effect_list_100[8:12] + effect_list_100[:8] + effect_list_100[20:] + effect_list_100[12:20]
                     gb = (gb[0] - grib_set_length * math.cos(theta/180*math.pi), gb[1] - grib_set_length * math.sin(theta/180*math.pi))
+                    cb = (cb[0] - grib_set_length * math.cos(theta/180*math.pi), cb[1] - grib_set_length * math.sin(theta/180*math.pi))
+
                 else:  # use the left side
                     effect_list_50 = effect_list_50[4:] + effect_list_50[:4]
                     effect_list_100 = effect_list_100[4:12] + effect_list_100[:4] + effect_list_100[16:] + effect_list_100[12:16]
                     gb = (gb[0] + grib_set_length * math.cos(theta/180*math.pi), gb[1] + grib_set_length * math.sin(theta/180*math.pi))
+                    cb = (cb[0] + grib_set_length * math.cos(theta/180*math.pi), cb[1] + grib_set_length * math.sin(theta/180*math.pi))
         else:
             continue
 
@@ -789,6 +795,7 @@ def grab_apply_offset(part: dict, offset: tuple, references, device_code="LC-01"
         part["Grab"][n]["List100"] = effect_list_100
         part["Grab"][n]["50"] = to_decimal(effect_list_50)
         part["Grab"][n]["100"] = to_decimal(refine_effect_list(effect_list_100))
+        part["Convey"][n]["Conveypoint"] = cb
 
         # print(n)
         # print(effect_list_100)

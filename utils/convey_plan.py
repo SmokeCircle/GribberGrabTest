@@ -71,10 +71,14 @@ def convey_plan(data, config):
 
             num_gribbers = len(grab_dict.keys())
             if num_gribbers == 1:
+                center_grab_refined = (center_grab[0]+origin_grab[0], nestHeight - (center_grab[1]+origin_grab[1]))
+                grabpoint_one = grab_dict[0]['Grabpoint']
+                conveypoint_one = (center_convey[0]+grabpoint_one[0]-center_grab_refined[0],
+                                  center_convey[1]+grabpoint_one[1]-center_grab_refined[1])
                 nest[i]['Convey'][0] = {
                     'ConveyorID': cid,
                     'Theta': grab_dict[0]['Theta'] + rotation_angle_to_store,
-                    'Conveypoint': center_convey,
+                    'Conveypoint': conveypoint_one,
                 }
             elif num_gribbers == 2:
                 grabpoint_one = grab_dict[0]['Grabpoint']
