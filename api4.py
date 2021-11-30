@@ -1,4 +1,4 @@
-﻿import numpy as np
+import numpy as np
 import cv2
 import torch
 import argparse
@@ -214,6 +214,10 @@ def plan(args):
                     synced_Storepoint = (data[nestID]['Parts'][n]['Grab'][1]['Grabpoint'][0] + travel_length[0],
                                          data[nestID]['Parts'][n]['Grab'][1]['Grabpoint'][1] + travel_length[1])
                     data[nestID]["Parts"][n]['Store'][1]['Storepoint'] = synced_Storepoint
+                    # 角度也要统一，因为在超长件的情况下不能旋转
+                    for m in data[nestID]["Parts"][n]['Grab'].keys():
+                        data[nestID]["Parts"][n]['Store'][m]['Theta'] = data[nestID]["Parts"][n]['Grab'][m]['Theta']
+
             data[nestID].update({"StoreStatus": 1})
 
         print("Inserting Stack Strategy into SQL Server ...")
