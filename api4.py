@@ -90,9 +90,10 @@ def plan(args):
         for i in data[nestID]["Parts"].keys():
             if data[nestID]["Parts"][i]["Grabbability"]:
                 img = data[nestID]["Parts"][i]["Part"]
-                if img.shape[0]*img.shape[1] < 500000:
-                    print("{}: too small, not used as template".format(data[nestID]["Parts"][i]["PartSN"]))
-                else:
+                # if img.shape[0]*img.shape[1] < 500000:
+                if True:
+                #    print("{}: too small, not used as template".format(data[nestID]["Parts"][i]["PartSN"]))
+                # else:
                     img = detect_area_center_and_principal(img)[2]
                     if not os.path.exists(os.path.join(path, data[nestID]["Parts"][i]["PartSN"]+'.png')):
                         cv2.imwrite(os.path.join(path, data[nestID]["Parts"][i]["PartSN"]+'.png'), img)
