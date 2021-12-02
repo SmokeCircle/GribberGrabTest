@@ -4,7 +4,7 @@ from utils.DB.DbResposity import *
 import math
 from utils.conveyor import *
 
-ConveyorPlaceOriginRightMid = (4800, 5354)  # 工件放置的边界（x, y），x轴以工件的有边界为基准
+ConveyorPlaceOriginRightMid = (4400, 5354)  # 工件放置的边界（x, y），x轴以工件的有边界为基准
 
 def convey_plan(data, config):
     # Calculate the store coordinate
@@ -54,18 +54,18 @@ def convey_plan(data, config):
             rotation_angle_to_store = 90 if rot else 0
 
             # refine the center_convey if the grab mode is '100' or '50'
-            if mode == '100':
-                x, y = center_convey
-                rot = grab_dict[0]['Theta'] + rotation_angle_to_store
-                x_r = x - 125 * math.sin(rot / 180 * math.pi)
-                y_r = y + 125 * math.cos(rot / 180 * math.pi)
-                center_convey = (x_r, y_r)
-            elif mode == '50':
-                x, y = center_convey
-                rot = grab_dict[0]['Theta'] + rotation_angle_to_store
-                x_r = x - 25 * math.sin(rot / 180 * math.pi)
-                y_r = y + 25 * math.cos(rot / 180 * math.pi)
-                center_convey = (x_r, y_r)
+            # if mode == '100':
+            #     x, y = center_convey
+            #     rot = grab_dict[0]['Theta'] + rotation_angle_to_store
+            #     x_r = x - 125 * math.sin(rot / 180 * math.pi)
+            #     y_r = y + 125 * math.cos(rot / 180 * math.pi)
+            #     center_convey = (x_r, y_r)
+            # elif mode == '50':
+            #     x, y = center_convey
+            #     rot = grab_dict[0]['Theta'] + rotation_angle_to_store
+            #     x_r = x - 25 * math.sin(rot / 180 * math.pi)
+            #     y_r = y + 25 * math.cos(rot / 180 * math.pi)
+            #     center_convey = (x_r, y_r)
 
             center_convey = (center_convey[0], conveyors[cid].height_real - center_convey[1])  # change the origin from top left to button left
 
