@@ -80,8 +80,10 @@ class Matcher:
             if not self.args.debug:
                 if "match" in line:
                     line = line.strip().split(' ')
+                    #res.append({"id": int(line[2].split('_')[-1]), "x": int(line[4]), "y": int(line[6]),
+                    #            "angle": int(line[8]), "scale": float(line[10]), "similarity": float(line[12])})
                     res.append({"id": int(line[2].split('_')[-1]), "x": int(line[4]), "y": int(line[6]),
-                                "angle": int(line[8]), "scale": float(line[10]), "similarity": float(line[12])})
+                                "angle": int(line[8]), "scale": 1.0, "similarity": float(line[12])})
         return res
 
     def src_of(self, info):
