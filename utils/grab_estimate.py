@@ -7,7 +7,7 @@ import torch
 import torch.nn.functional as F
 import math
 
-WTHRESHOLDS = [300, 2200, 3200, 5000, 6500, 13000]  # 倒数第二个参数为是否使用两个抓手进行抓取的阈值，<=该参数使用单手抓取，>该参数使用双手抓取
+WTHRESHOLDS = [300, 2200, 3200, 5000, 6800, 13000]  # 倒数第二个参数为是否使用两个抓手进行抓取的阈值，<=该参数使用单手抓取，>该参数使用双手抓取
 HTHRESHOLDS = [75, 200, 500]
 LOCTHRESH = 10
 # CUDA = torch.cuda.is_available()

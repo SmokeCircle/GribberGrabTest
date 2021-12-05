@@ -4,7 +4,7 @@ from utils.DB.DbResposity import *
 import math
 from utils.conveyor import *
 
-ConveyorPlaceOriginRightMid = (4800, 5354)  # 工件放置的边界（x, y），x轴以工件的有边界为基准
+ConveyorPlaceOriginRightMid = (4400, 5354)  # 工件放置的边界（x, y），x轴以工件的有边界为基准
 
 def convey_plan(data, config):
     # Calculate the store coordinate
