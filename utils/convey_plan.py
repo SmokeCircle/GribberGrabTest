@@ -4,7 +4,7 @@ from utils.DB.DbResposity import *
 import math
 from utils.conveyor import *
 
-ConveyorPlaceOriginRightMid = (4400, 5354)  # 工件放置的边界（x, y），x轴以工件的有边界为基准
+ConveyorPlaceOriginRightMid = (4800, 5354)  # 工件放置的边界（x, y），x轴以工件的有边界为基准
 
 def convey_plan(data, config):
     # Calculate the store coordinate
@@ -104,6 +104,7 @@ def convey_plan(data, config):
         data[nestID]["Parts"].update(nest)
         for i in range(len(conveyors)):
             conveyors[i].visualize(nestID)
+    visualize_convey_plan(data)
 
 
 def convey_apply_offset_all(data: dict, width=10000, height=1900):  # width和height为Conveyor中的长度和宽度
@@ -121,5 +122,36 @@ def convey_apply_offset_all(data: dict, width=10000, height=1900):  # width和he
         data[nestID]["Parts"].update(nest)
 
 
-
-
+def visualize_convey_plan(data, conveyorHeight=1900):
+    colors = {
+        "50": (255, 0, 0),  # Blue  只使用一组阵列中一行4个直径50吸头的情况为蓝色
+        "100": (0, 255, 0),  # Green  只使用一组阵列中一行4个直径100吸头的情况为绿色
+        "small": (0, 0, 255),  # Red  只使用一组阵列的情况为红色
+        "medium": (240, 32, 160),  # Purple 使用2组阵列的情况为紫色
+        "large": (139, 0, 0),  # deep blue 使用3组阵列的情况为深蓝色
+    }
+    length = 125
+    for nestID in data.keys():
+        parts = data[nestID]["Parts"]
+        cid = 0
+        for n in parts.keys():
+            if parts[n]["Grabbability"]:
+                cid = max(cid, parts[n]["Convey"][0]["ConveyorID"])
+        ConveyorBatch = cid + 1
+        imgs = {}
+        for i in range(ConveyorBatch):
+            imgs[i] = cv2.imread("./dump/conveyor_vis/conveyor_id{}_nestID={}.png".format(i, nestID))
+        for n in parts.keys():
+            if parts[n]["Grabbability"]:
+                img = imgs[parts[n]["Convey"][0]["ConveyorID"]]
+                for g in parts[n]["Convey"].keys():
+                    pt = parts[n]["Convey"][g]["Conveypoint"]
+                    pt = (int(pt[0]), int(conveyorHeight - pt[1]))
+                    theta = parts[n]["Convey"][g]["Theta"]
+                    mode = parts[n]["Mode"]
+                    ds = (int(pt[0]-length*math.cos((theta-90)/180*math.pi)), int(pt[1]+length*math.sin((theta-90)/180*math.pi)))
+                    cv2.circle(img, pt, 30, colors[mode], -1)
+                    cv2.line(img, pt, ds, colors[mode], thickness=10)
+                imgs[parts[n]["Convey"][0]["ConveyorID"]] = img
+        for i in range(ConveyorBatch):
+             cv2.imwrite("./dump/conveyor_vis/conveyor_id{}_nestID={}.png".format(i, nestID), imgs[i])

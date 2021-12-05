@@ -1,4 +1,4 @@
-import numpy as np
+﻿import numpy as np
 import cv2
 from utils.gribber import Gribber, SortGribberConfig, StackGribberConfig
 from utils.DB.DbResposity import *
@@ -7,18 +7,18 @@ import torch
 import torch.nn.functional as F
 import math
 
-WTHRESHOLDS = [300, 2200, 3200, 5000, 7000, 13000]  # 倒数第二个参数为是否使用两个抓手进行抓取的阈值，<=该参数使用单手抓取，>该参数使用双手抓取
+WTHRESHOLDS = [300, 2200, 3200, 5000, 6500, 13000]  # 倒数第二个参数为是否使用两个抓手进行抓取的阈值，<=该参数使用单手抓取，>该参数使用双手抓取
 HTHRESHOLDS = [75, 200, 500]
 LOCTHRESH = 10
 # CUDA = torch.cuda.is_available()
 CUDA = False
-HeightThresholdDown = 75  # 高度>=该阈值进行抓取
-WidthThresholdDown = 300  # 宽度>=该阈值进行抓取
+HeightThresholdDown = 150  # 高度>=该阈值进行抓取
+WidthThresholdDown = 500  # 宽度>=该阈值进行抓取
 HeightThresholdUp = 1500  # 高度<=该阈值进行抓取
 WidthThresholdUp = 12000  # 宽度<=该阈值进行抓取
 # HORIGRABTHRESHOLD_PART = 600  # <=该阈值则只进行水平抓取
 # VERTICALGRABTHRESHOLD_COORD_REV = 1580  # 若抓取点距离料板右端距离<=该阈值则只进行垂直抓取
-
+GribberMargin = 200  # 调整两个抓手之间的间距，增大则抓手之间隔开
 
 def check_for_grab(partDB):
     for n in partDB.keys():
@@ -200,7 +200,7 @@ def calculate_center_and_principal(c):
     return center_x, center_y, theta
 
 
-def detect_area_center_and_principal(piece: np.ndarray, with_hole=True, binary=False):
+def detect_area_center_and_principal(piece: np.ndarray, with_hole=True, binary=False, gribber_width=3330):
     """
 
     :param piece:
@@ -259,12 +259,24 @@ def detect_area_center_and_principal(piece: np.ndarray, with_hole=True, binary=F
             imgL, imgR = img[:, :w//2], img[:, w//2:]
             ret = 2
 
-        c = cv2.moments(imgL, binaryImage=True)
+        c = cv2.moments(img, binaryImage=True)
         center_x, center_y, princ = calculate_center_and_principal(c)
         cL = cv2.moments(imgL, binaryImage=True)
         center_xL, center_yL, _ = calculate_center_and_principal(cL)
         cR = cv2.moments(imgR, binaryImage=True)
         center_xR, center_yR, _ = calculate_center_and_principal(cR)
+
+        if ret == 1:
+            deltaL = min(max(center_yL - gribber_width // 2, 0), GribberMargin//2)
+            deltaR = min(max((imgR.shape[0] - center_yR) - gribber_width // 2, 0), GribberMargin//2)
+            center_yL -= deltaL
+            center_yR += deltaR
+        elif ret == 2:
+            deltaL = min(max(center_xL - gribber_width // 2, 0), GribberMargin//2)
+            deltaR = min(max((imgR.shape[1] - center_xR) - gribber_width // 2, 0), GribberMargin//2)
+            center_xL -= deltaL
+            center_xR += deltaR
+
         if ret == 1:
             center_yR += h//2
         elif ret == 2:
@@ -489,32 +501,15 @@ def grab_plan_sort(data, config):
                 mode = ac[2]
                 origin = nest[i]['Origin']
 
-                # if origin[0] >= nestWidth - grib.width:
-                #     index, circles = grab_by_gravity_center(preprocess_torch(area), kernels, mode, grib.rotation_angle,
-                #                                             center, id, split=split, sn=nest[i]['PartSN'], num=i, tgt_angle=90)
-                # elif max(partWidth, partHeight) <= HORIGRABTHRESHOLD_PART:
-                #     index, circles = grab_by_gravity_center(preprocess_torch(area), kernels, mode, grib.rotation_angle,
-                #                                             center, id, split=split, sn=nest[i]['PartSN'], num=i, tgt_angle=0)
-                # else:
-                #     index, circles = grab_by_gravity_center(preprocess_torch(area), kernels, mode, grib.rotation_angle,
-                #                                             center, id, split=split, sn=nest[i]['PartSN'], num=i)
                 cv2.imwrite("./output/area_vis/area_vis_num{}_sn{}_id{}.png".format(i, nest[i]['PartSN'], id), area)
                 index, circles = grab_by_gravity_center(preprocess_torch(area), kernels, mode, grib.rotation_angle,
-                                                            center, id, split=split, sn=nest[i]['PartSN'], num=i)
+                                                        center, id, split=split, sn=nest[i]['PartSN'], num=i)
                 if index == -1:
-                    # print("Programming failed, the part {} is not grabbable!".format(nest[i]['PartSN']))
-                    # nest[i]['Grabbability'] = False
-                    # data[nestID]["Parts"].update(nest)
-                    # continue
-                    # print("Retrying programming grab for the part {} ignoring hole ...".format(nest[i]['PartSN']))
-                    # areas_and_centers_local, _, _, _, _ = detect_area_center_and_principal(nest[i]['Part'], with_hole=False)
-                    # area, center, mode = areas_and_centers_local[id][0], areas_and_centers_local[id][1], areas_and_centers_local[id][2]
-                    # center, mode = areas_and_centers_local[id][1], areas_and_centers_local[id][2]
-
                     print("Retrying programming grab for the part {} with horizonal drift ...".format(nest[i]['PartSN']))
                     count = 10
+                    delta_x = -10 if id == 0 else 10
                     while center[0] > area.shape[1]//2 - kernels[mode].shape[1] // 2 and area.shape[1] > kernels[mode].shape[1] and count>0:
-                        center = (center[0]-10, center[1])
+                        center = (center[0]+delta_x, center[1])
                         index, circles = grab_by_gravity_center(preprocess_torch(area), kernels, mode, grib.rotation_angle,
                                                                 center, id, split=split, sn=nest[i]['PartSN'], num=i)
                         count -= 1
@@ -522,10 +517,11 @@ def grab_plan_sort(data, config):
                             break
                     if index == -1:
                         print("Retrying programming grab for the part {} with vertical drift ...".format(nest[i]['PartSN']))
-                        center = (center[0] + 100, center[1])
+                        center = (center[0] + 10*delta_x, center[1])
                         count = 10
+                        delta_y = 5
                         while center[1] < area.shape[0]//8*7 and count > 0:
-                            center = (center[0], center[1] - 5)
+                            center = (center[0], center[1] - delta_y)
                             index, circles = grab_by_gravity_center(preprocess_torch(area), kernels, mode,
                                                                     grib.rotation_angle,
                                                                     center, id, split=split, sn=nest[i]['PartSN'], num=i)
@@ -612,48 +608,44 @@ def grab_plan_stack(data, config):
                 mode = ac[2]
                 origin = nest[i]['Origin']
 
-                # if origin[0] >= nestWidth - grib.width:
-                #     index, circles = grab_by_gravity_center(preprocess_torch(area), kernels, mode, grib.rotation_angle,
-                #                                             center, id, split=split, sn=nest[i]['PartSN'], num=i, tgt_angle=90)
-                # elif max(partWidth, partHeight) <= HORIGRABTHRESHOLD_PART:
-                #     index, circles = grab_by_gravity_center(preprocess_torch(area), kernels, mode, grib.rotation_angle,
-                #                                             center, id, split=split, sn=nest[i]['PartSN'], num=i, tgt_angle=0)
-                # else:
-                #     index, circles = grab_by_gravity_center(preprocess_torch(area), kernels, mode, grib.rotation_angle,
-                #                                             center, id, split=split, sn=nest[i]['PartSN'], num=i)
-
                 index, circles = grab_by_gravity_center(preprocess_torch(area), kernels, mode, grib.rotation_angle,
-                                                            center, id, split=split, sn=nest[i]['PartSN'], num=i)
-
+                                                        center, id, split=split, sn=nest[i]['PartSN'], num=i)
                 if index == -1:
-                    # print("Programming failed, the part {} is not grabbable!".format(nest[i]['PartSN']))
-                    # nest[i]['Grabbability'] = False
-                    # data[nestID]["Parts"].update(nest)
-                    # continue
-                    # print("Retrying programming grab for the part {} ignoring hole ...".format(nest[i]['PartSN']))
-                    # areas_and_centers_local, _, _, _, _ = detect_area_center_and_principal(nest[i]['Part'], with_hole=False)
-                    # area, center, mode = areas_and_centers_local[id][0], areas_and_centers_local[id][1], areas_and_centers_local[id][2]
-                    # index, circles = grab_by_gravity_center(preprocess_torch(area), kernels, mode, grib.rotation_angle,
-                    #                                         center, id, sn=nest[i]['PartSN'], num=i)
-                    # if index == -1:
-                    #     print("Reprogramming Failed, the part {} is not grabbable!".format(nest[i]['PartSN']))
-                    #     nest[i]['Grabbability'] = False
-                    #     data[nestID]["Parts"].update(nest)
-                    #     continue
-                    # else:
-                    #     print("Reprogramming Success, continuing ...")
-                    print("Retrying programming grab for the part {} with drift ...".format(nest[i]['PartSN']))
-                    while center[0] > area.shape[1]//2 - kernels[mode].shape[1] // 2 and area.shape[1] > kernels[mode].shape[1]:
-                        center = (center[0]-10, center[1])
-                        index, circles = grab_by_gravity_center(preprocess_torch(area), kernels, mode, grib.rotation_angle,
-                                                                center, id, sn=nest[i]['PartSN'], num=i)
+                    print(
+                        "Retrying programming grab for the part {} with horizonal drift ...".format(nest[i]['PartSN']))
+                    count = 10
+                    delta_x = -10 if id == 0 else 10
+                    while center[0] > area.shape[1] // 2 - kernels[mode].shape[1] // 2 and area.shape[1] > \
+                            kernels[mode].shape[1] and count > 0:
+                        center = (center[0] + delta_x, center[1])
+                        index, circles = grab_by_gravity_center(preprocess_torch(area), kernels, mode,
+                                                                grib.rotation_angle,
+                                                                center, id, split=split, sn=nest[i]['PartSN'], num=i)
+                        count -= 1
                         if index != -1:
                             break
                     if index == -1:
-                        print("Reprogramming Failed, the part {} is not grabbable!".format(nest[i]['PartSN']))
-                        nest[i]['Grabbability'] = False
-                        data[nestID]["Parts"].update(nest)
-                        continue
+                        print("Retrying programming grab for the part {} with vertical drift ...".format(
+                            nest[i]['PartSN']))
+                        center = (center[0] + 10 * delta_x, center[1])
+                        count = 10
+                        delta_y = 5
+                        while center[1] < area.shape[0] // 8 * 7 and count > 0:
+                            center = (center[0], center[1] - delta_y)
+                            index, circles = grab_by_gravity_center(preprocess_torch(area), kernels, mode,
+                                                                    grib.rotation_angle,
+                                                                    center, id, split=split, sn=nest[i]['PartSN'],
+                                                                    num=i)
+                            count -= 1
+                            if index != -1:
+                                break
+                        if index == -1:
+                            print("Reprogramming Failed, the part {} is not grabbable!".format(nest[i]['PartSN']))
+                            nest[i]['Grabbability'] = False
+                            data[nestID]["Parts"].update(nest)
+                            continue
+                        else:
+                            print("Reprogramming Success, continuing ...")
                     else:
                         print("Reprogramming Success, continuing ...")
                 theta = index * grib.rotation_angle
